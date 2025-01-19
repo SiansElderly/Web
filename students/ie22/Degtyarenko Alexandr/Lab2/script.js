@@ -1,229 +1,263 @@
 document.addEventListener('DOMContentLoaded', function() {
-    let a = '';
-    let b = '';
+    let firstOperand = '';
+    let secondOperand = '';
     let expressionResult = '';
     let selectedOperation = null;
-    
+    let currentExpression = '';
+    let accumulatedResult = null; // Переменная для накопления результата
+    let rememberedNumber = null; // Переменная для запоминания числа
+    let previousOperation = null; // Переменная для хранения предыдущей операции
+  
     // Окно вывода результата
     const outputElement = document.getElementById("result");
-
-    // Переменная для хранения текущего выражения
-    let currentExpression = '';
-
-    const digitButtons = document.querySelectorAll('[id ^= "btn_digit_"]');
-
+  
+    // Объект для хранения функций операций
+    const operations = {
+      'x': (a, b) => a * b,
+      '+': (a, b) => a + b,
+      '-': (a, b) => a - b,
+      '/': (a, b) => b !== 0 ? a / b : Infinity
+    };
+  
+    // Функция для обновления окна вывода
     function updateOutput() {
-        if (currentExpression.length > 8) {
-            outputElement.innerHTML = currentExpression.slice(0, 8) + '...';
+      let displayValue = '';
+  
+      if (selectedOperation && secondOperand !== '') {
+        displayValue = `${firstOperand} ${selectedOperation} ${secondOperand}`;
+      } else if (selectedOperation && secondOperand === '') {
+        displayValue = `${firstOperand} ${selectedOperation}`;
+      } else {
+        displayValue = firstOperand || '0';
+      }
+  
+      if (displayValue.length > 8) {
+        if (displayValue.includes('.')) {
+          const parts = displayValue.split('.');
+          if (parts[1].length > 4) {
+            displayValue = parseFloat(displayValue).toFixed(4);
+          }
         } else {
-            outputElement.innerHTML = currentExpression || '0';
+          displayValue = Math.round(parseFloat(displayValue)).toString();
         }
+      }
+      if (displayValue.length > 8) {
+        displayValue = displayValue.substring(0, 8);
     }
-
+      outputElement.innerHTML = displayValue;
+    }
+  
+    // Функция для обработки клика на цифровые кнопки
     function onDigitButtonClicked(digit) {
-        if (!selectedOperation) {
-            if ((digit != '.') || (digit == '.' && !a.includes(digit))) {
-                if (a === '0' && digit !== '.') {
-                    return;
-                } else {
-                    a += digit;
-                }
-                currentExpression += digit;
-            }
-        } else {
-            if ((digit != '.') || (digit == '.' && !b.includes(digit))) {
-                if (b === '0' && digit !== '.') {
-                    return;
-                } else {
-                    b += digit;
-                }
-                currentExpression += digit;
-            }
+      if (!selectedOperation) {
+        if ((digit !== '.') || (digit === '.' && !firstOperand.includes(digit))) {
+          if (firstOperand === '0' && digit !== '.') {
+            firstOperand = digit;
+          } else {
+            firstOperand += digit;
+          }
         }
-        updateOutput();
+      } else {
+        if ((digit !== '.') || (digit === '.' && !secondOperand.includes(digit))) {
+          if (secondOperand === '0' && digit !== '.') {
+            secondOperand = digit;
+          } else {
+            secondOperand += digit;
+          }
+          currentExpression = `${firstOperand} ${selectedOperation} ${secondOperand}`;
+        }
+      }
+      updateOutput();
     }
-
+  
+    // Функция для установки операции
     function setOperation(operation) {
-        if (currentExpression.length > 0 && !isOperator(currentExpression.trim().slice(-1))) {
-            performOperation();
-            selectedOperation = operation;
-            currentExpression += ` ${operation} `;
-            updateOutput();
-        }
-    }
-
-    function isOperator(char) {
-        return ['+', '-', 'x', '/'].includes(char);
-    }
-
-    // Установка колбек-функций на кнопки циферблата
-    digitButtons.forEach(button => {
-        button.onclick = function() {
-            const digitValue = button.innerHTML;
-            onDigitButtonClicked(digitValue);
-        }
-    });
-
+      if (firstOperand !== '') {
+          selectedOperation = operation;
+          currentExpression = `${firstOperand} ${operation}`;
+          secondOperand = '';
+          accumulatedResult = null;
+          previousOperation = null;
+          updateOutput();
+      }
+  }
+  
     // Функция для выполнения операции
     function performOperation() {
-        if (a === '' || !selectedOperation) return;
-
-        if (b === '') {
-            return;
+      if (selectedOperation && firstOperand !== '' && secondOperand !== '') {
+        rememberedNumber = parseFloat(secondOperand);
+        previousOperation = selectedOperation;
+        if (accumulatedResult === null) {
+          expressionResult = operations[selectedOperation](parseFloat(firstOperand), parseFloat(secondOperand));
+        } else {
+          expressionResult = operations[selectedOperation](parseFloat(accumulatedResult), parseFloat(secondOperand));
         }
-
-        switch(selectedOperation) { 
-            case 'x':
-                expressionResult = (+a) * (+b);
-                break;
-            case '+':
-                expressionResult = (+a) + (+b);
-                break;
-            case '-':
-                expressionResult = (+a) - (+b);
-                break;
-            case '/':
-                expressionResult = (+a) / (+b);
-                break;
-        }
-        
-        a = expressionResult.toString();
-        b = '';
+        accumulatedResult = expressionResult;
+        firstOperand = expressionResult.toString();
+        secondOperand = ''; 
         selectedOperation = null;
-        currentExpression = a;
         updateOutput();
+      }
     }
-
+  
+    // Установка колбек-функций на кнопки циферблата
+    const digitButtons = document.querySelectorAll('[id ^= "btn_digit_"]');
+    digitButtons.forEach(button => {
+      button.onclick = function() {
+        const digitValue = button.innerHTML;
+        onDigitButtonClicked(digitValue);
+      }
+    });
+  
     // Установка колбек-функций для кнопок операций
-document.getElementById("btn_op_mult").onclick = function() { setOperation('x'); };
-document.getElementById("btn_op_plus").onclick = function() { setOperation('+'); };
-document.getElementById("btn_op_minus").onclick = function() { setOperation('-'); };
-document.getElementById("btn_op_divide").onclick = function() { setOperation('/'); };
-
+    const operationButtons = {
+      'x': document.getElementById("btn_op_mult"),
+      '+': document.getElementById("btn_op_plus"),
+      '-': document.getElementById("btn_op_minus"),
+      '/': document.getElementById("btn_op_divide")
+    };
+  
+    Object.keys(operationButtons).forEach(operation => {
+      operationButtons[operation].onclick = () => setOperation(operation);
+    });
+  
     // Кнопка смены знака
     document.getElementById("btn_op_sign").onclick = function() {
-        if (a !== '') {
-            a = (-1 * parseFloat(a)).toString();
-            outputElement.innerHTML = a;
-        } else if (b !== '') {
-            b = (-1 * parseFloat(b)).toString();
-            outputElement.innerHTML = b;
-        }
+      if (firstOperand !== '') {
+        firstOperand = (-1 * parseFloat(firstOperand)).toString();
+        updateOutput();
+      } else if (secondOperand !== '') {
+        secondOperand = (-1 * parseFloat(secondOperand)).toString();
+        updateOutput();
+      }
     };
-
+  
     // Кнопка вычисления процента
     document.getElementById("btn_op_percent").onclick = function() {
-        if (selectedOperation) {
-            if (b !== '') {
-                const percentage = parseFloat(b) / 100;
-                b = (parseFloat(a) * percentage).toString();
-                outputElement.innerHTML = (parseFloat(a) - parseFloat(b)).toString();
-                a = outputElement.innerHTML;
-                currentExpression = a;
-            }
-        } else {
-            if (a !== '') {
-                a = (parseFloat(a) / 100).toString();
-                outputElement.innerHTML = a;
-            }
+      if (selectedOperation) {
+        if (secondOperand !== '') {
+          const percentage = parseFloat(secondOperand) / 100;
+          secondOperand = (parseFloat(firstOperand) * percentage).toString();
+          updateOutput();
         }
+      } else {
+        if (firstOperand !== '') {
+          firstOperand = (parseFloat(firstOperand) / 100).toString();
+          updateOutput();
+        }
+      }
     };
-
+  
     // Кнопка стирания последней цифры
     document.getElementById("btn_op_backspace").onclick = function() {
-        if (!selectedOperation) {
-            a = a.slice(0, -1);
-            outputElement.innerHTML = a.length > 0 ? a : '0'; 
-        } else {
-            b = b.slice(0, -1);
-            outputElement.innerHTML = b.length > 0 ? b : '0'; 
+      if (!selectedOperation) {
+        firstOperand = firstOperand.slice(0, -1);
+        if (firstOperand === '') {
+          firstOperand = '0';
         }
+        updateOutput();
+      } else {
+        secondOperand = secondOperand.slice(0, -1);
+        if (secondOperand === '') {
+          secondOperand = '0';
+        }
+        updateOutput();
+      }
     };
-
+  
+    // Кнопка вычисления квадратного корня
+    document.getElementById("btn_op_sqrt").onclick = function() {
+      if (firstOperand !== '') {
+        firstOperand = Math.sqrt(parseFloat(firstOperand)).toString();
+        updateOutput();
+      } else if (secondOperand !== '') {
+        secondOperand = Math.sqrt(parseFloat(secondOperand)).toString();
+        updateOutput();
+      }
+    };
+  
+    // Кнопка возведения в квадрат
+    document.getElementById("btn_op_square").onclick = function() {
+      if (firstOperand !== '') {
+        firstOperand = Math.pow(parseFloat(firstOperand), 2).toString();
+        updateOutput();
+      } else if (secondOperand !== '') {
+        secondOperand = Math.pow(parseFloat(secondOperand), 2).toString();
+        updateOutput();
+      }
+    };
+  
+    // Функция для вычисления факториала
+    function factorial(n) {
+      if (n < 0) return undefined;
+      if (n === 0 || n === 1) return 1;
+  
+      let result = 1;
+      for (let i=2; i <= n; i++) {
+        result *= i;
+      }
+      return result;
+    }
+  
+    // Кнопка вычисления факториала
+    document.getElementById("btn_op_factorial").onclick = function() {
+      if (firstOperand !== '') {
+        firstOperand = factorial(parseInt(firstOperand)).toString();
+        updateOutput();
+      } else if (secondOperand !== '') {
+        secondOperand = factorial(parseInt(secondOperand)).toString();
+        updateOutput();
+      }
+    };
+  
+    // Кнопка добавления трех нулей
+    document.getElementById("btn_op_add_three_zeros").onclick = function() {
+      if (!selectedOperation) {
+        firstOperand += "000";
+        updateOutput();
+      } else {
+        secondOperand += "000";
+        updateOutput();
+      }
+    };
+  
+    // Кнопка очистки
+    document.getElementById("btn_op_clear").onclick = function() { 
+      firstOperand = '';
+      secondOperand = '';
+      selectedOperation = null;
+      expressionResult = '';
+      accumulatedResult = null; 
+      rememberedNumber = null; 
+      previousOperation = null;
+      outputElement.innerHTML = '0';
+    };
+  
+    // Кнопка вычисления результата
+    document.getElementById("btn_op_equal").onclick = function() {
+      if (selectedOperation && firstOperand !== '' && secondOperand !== '') {
+          performOperation();
+      } else if (previousOperation && firstOperand !== '') {
+          expressionResult = operations[previousOperation](parseFloat(firstOperand), rememberedNumber);
+          firstOperand = expressionResult.toString();
+          updateOutput();
+      }
+  };
+  
     // Кнопка смены цвета фона
     document.getElementById("btn_color_change").onclick = function() {
         const colors = ['#2B5257', '#4A9B8E', '#FF5733', '#33FF57', '#3357FF', '#F1C40F', '#E67E22', '#E74C3C'];
         const randomColor = colors[Math.floor(Math.random() * colors.length)];
         document.querySelector('.button-container').style.backgroundColor = randomColor;
-    };
-
-    // Кнопка смены цвета окна вывода результата
-    document.getElementById("btn_result_color_change").onclick = function() {
+      };
+    
+      // Кнопка смены цвета окна вывода результата
+      document.getElementById("btn_result_color_change").onclick = function() {
         const colors = ['#FF5733', '#33FF57', '#3357FF', '#F1C40F', '#E67E22', '#E74C3C', '#2B5257', '#4A9B8E'];
         const randomColor = colors[Math.floor(Math.random() * colors.length)];
         outputElement.style.backgroundColor = randomColor;
-    };
+      };
 
-    // Кнопка вычисления квадратного корня
-    document.getElementById("btn_op_sqrt").onclick = function() {
-        if (a !== '') {
-            a = Math.sqrt(parseFloat(a)).toString();
-            outputElement.innerHTML = a;
-        } else if (b !== '') {
-            b = Math.sqrt(parseFloat(b)).toString();
-            outputElement.innerHTML = b;
-        }
-    };
-
-    // Кнопка возведения в квадрат
-    document.getElementById("btn_op_square").onclick = function() {
-        if (a !== '') {
-            a = Math.pow(parseFloat(a), 2).toString();
-            outputElement.innerHTML = a;
-        } else if (b !== '') {
-            b = Math.pow(parseFloat(b), 2).toString();
-            outputElement.innerHTML = b;
-        }
-    };
-
-    // Функция для вычисления факториала
-    function factorial(n) {
-        if (n < 0) return undefined;
-        if (n === 0 || n === 1) return 1;
-        
-       let result = 1;
-       for (let i=2; i <= n; i++) {
-           result *= i;
-       }
-       return result;
-   }
-
-   // Кнопка вычисления факториала
-   document.getElementById("btn_op_factorial").onclick = function() {
-       if (a !== '') {
-           a = factorial(parseInt(a)).toString();
-           outputElement.innerHTML = a;
-       } else if (b !== '') {
-           b = factorial(parseInt(b)).toString();
-           outputElement.innerHTML = b;
-       }
-   };
-
-   // Кнопка добавления трех нулей
-   document.getElementById("btn_op_add_three_zeros").onclick = function() {
-       if (!selectedOperation) {
-           a += "000";
-           outputElement.innerHTML = a;
-       } else {
-           b += "000";
-           outputElement.innerHTML = b;
-       }
-   };
-
-   document.getElementById("btn_op_clear").onclick = function() { 
-       a = '';
-       b = '';
-       selectedOperation = null;
-       expressionResult = '';
-       currentExpression= '';
-       outputElement.innerHTML= '0';
-   };
-
-   // Кнопка расчёта результата
-   document.getElementById("btn_op_equal").onclick= function() { 
-       performOperation();
-       outputElement.innerHTML= a;
-   };
 
 // Смена темы
 function toggleTheme() {
